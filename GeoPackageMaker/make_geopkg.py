@@ -1,7 +1,10 @@
+#!/usr/bin/env python3
+
 import csv
 import glob
 import os
 import sys
+import argparse
 from zipfile import ZipFile
 
 import pandas as pd
@@ -127,9 +130,10 @@ def make_features(csv_file_list):
 
 
 
-def make_geopackage(datasets, ds_property_dict):
+def make_geopackage(datasets, ds_property_dict, filename):
 
-    gpkg = GeoPackage.create(r'./mscl14.gpkg')
+    print(f"Writing out {filename}")
+    gpkg = GeoPackage.create(filename)
 
     srs_wkt = (
         'GEOGCS["WGS 84",'
@@ -191,7 +195,7 @@ def make_geopackage(datasets, ds_property_dict):
                 rows.append((wkb, dataset_id, borehole_id, name, datasetProperties, boreholeMaterialCustodian, description, drillStartDate, drillEndDate, elevation_m, boreholeLength_m, long, lat, nvclCollection, drillingMethod, driller, startPoint, inclinationType, elevation_srs, operator, datasetURL))
             except ValueError:
                 continue
-    field_names = [SHAPE, "identifier","borehole_id", "name", "datasetProperties", "boreholeMaterialCustodian","description","drillStartDate","drillEndDate","elevation_m","boreholeLength_m","long","lat","nvclCollection","drillingMethod","driller","startPoint","inclinationType","elevation_srs","operator", "datasetURL"]
+    field_names = [SHAPE.lower(), "identifier","borehole_id", "name", "datasetProperties", "boreholeMaterialCustodian","description","drillStartDate","drillEndDate","elevation_m","boreholeLength_m","long","lat","nvclCollection","drillingMethod","driller","startPoint","inclinationType","elevation_srs","operator", "datasetURL"]
     fc.insert_rows(field_names, rows)
 
     # CREATE DATASETS TABLE  
@@ -230,13 +234,22 @@ def make_geopackage(datasets, ds_property_dict):
         wkb = point_to_gpkg_point(point_geom_hdr, x, y)
         rows.append((wkb, borehole_header_id, depth, depth_point, diameter, p_wave_amplitude, p_wave_velocity, density, magnetic_susceptibility, impedance, natural_gamma, resistivity))
             
-    field_names = [SHAPE, "borehole_header_id","depth","depth_point","diameter","p_wave_amplitude","p_wave_velocity","density","magnetic_susceptibility","impedance","natural_gamma","resistivity"]
+    field_names = [SHAPE.lower(), "borehole_header_id","depth","depth_point","diameter","p_wave_amplitude","p_wave_velocity","density","magnetic_susceptibility","impedance","natural_gamma","resistivity"]
     fc.insert_rows(field_names, rows)
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Generates a geopkg file file borehole datasets")
+    parser.add_argument("filename", help="Package filename e.g. ./mscl12.gpkg")
+    args = parser.parse_args()
+    if os.sep not in args.filename:
+        print("Filename must have a path separator e.g. ./filename.gpkg")
+        sys.exit(1)
+    if args.filename[-5:] != '.gpkg':
+        print(f"Filename must end in '.gpkg'")
+        sys.exit(1)
     csv_file_list, datasets, ds_property_dict = make_datasets()
     make_features(csv_file_list)
-    print(ds_property_dict)
-    make_geopackage(datasets, ds_property_dict)
+    #print(ds_property_dict)
+    make_geopackage(datasets, ds_property_dict, args.filename)
     
