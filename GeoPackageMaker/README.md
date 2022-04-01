@@ -26,6 +26,12 @@ Change line 264 in './venv/lib/python3.8/site-packages/pygeopkg/core/geopkg.py' 
 ```
 return datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 ``` 
+*Also writes out shape column in upper case which causes problems for geoserver:*
+
+Change line 26 in './venv/lib/python3.8/site-packages/pygeopkg/core/sql.py' to:
+```
+ """shape {feature_type}{other_fields})"""
+```
 
 Run script
 

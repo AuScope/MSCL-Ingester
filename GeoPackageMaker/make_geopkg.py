@@ -20,19 +20,18 @@ from pygeopkg.conversion.to_geopkg_geom import (
 from pygeopkg.shared.constants import SHAPE
 
 
-# Creates two CSV file and uses them to writes out a geopkg
-# NB: Current package version of 'pygeopkg' writes out the date in the "gpkg_contents" table in a format that causes geoserver to fail
-#     but is fixed in github. Must edit the "geopkg.py" file to fix it.
-#
-# An alternative to 'pygeopkg' is 'fiona'. Does it enable creating a geopkg with non-text fields?? It has AWS support ...
+# Process a directory of CSV files (DATA_DIR) containing borehole data.
+# Creates a 'features.csv' file and uses it to write out a geopkg file which
+# can be uploaded to geoserver as boreholes & datasets
+# Links to datasets in an AWS s3 bucket dir are included as 'datasetURL' fields in feature data
+# Datasets are written out as .zip files ready to be transferred to AWS s3 bucket
 
-# TODO:
-# - Add comments
-# - Add support to upload files to AWS, using boto3 or fiona (?)
+
+# There are lots of things TODO:
+# - Add support to upload files to AWS s3 bucket, using boto3 or fiona (?)
+# An alternative to 'pygeopkg' is 'fiona'. Does it enable creating a geopkg with non-text fields?? It has AWS support...
 # - Make fields easy to change
-# - Use geopandas instead of csv
-# - Don't create two CSV files, just do it in memory
-# - Upload zip files to s3 bucket
+# - Use geopandas instead of features.csv file
 
 # Directory where borehole input files are kept
 DATA_DIR = "data"
@@ -51,6 +50,15 @@ COL_MAP = {"depth": ["DEPTH"], "depth_point":["DEPTH"], "diameter": ["DIAMETER"]
 "impedance":["IMPEDANCE"], "natural_gamma":["N. GAMMA", "NAT. GAMMA"], "resistivity":["RESISTIVITY"]}
 
 def make_datasets():
+    ''' Reads CSV files into pandas dataframes, extracting datasets
+
+    :returns: list of csv filenames, pandas dataframe containing datasets, dict of borehole_header_id -> col names
+
+    pandas dataframe format:
+        First column: 'borehole_header_id' links with the bh dataset
+        Second column: 'depth'
+        Third and subsequent columns:  row[:11] = 'depth_point', 'diameter' etc.
+    '''
     csv_file_list = []
     # Open up output file
     datasets = pd.DataFrame(columns=DS_COLS)
@@ -99,6 +107,10 @@ def make_datasets():
 
 
 def make_features(csv_file_list):
+    ''' Extracts borehole feature data from CSV files and writes them to 'features.csv' file
+
+    :param csv_file_list: list of CSV files to process
+    '''
     with open('features.txt', 'w', newline='') as csvfile:
         # Write header
         csvwriter = csv.writer(csvfile, quoting=csv.QUOTE_ALL)
@@ -131,6 +143,14 @@ def make_features(csv_file_list):
 
 
 def make_geopackage(datasets, ds_property_dict, filename):
+    ''' Creates a geopackage file with borehole datasets which can be imported into geoserver
+    Reads 'features.csv' to extract feature data.
+    Uses the pandas frame to extract the datasets.
+
+    :param datasets: file type e.g. FileType.GOCAD
+    :param ds_property_dict: dataset property dict
+    :param filename: geopackage filename with path
+    '''
 
     print(f"Writing out {filename}")
     gpkg = GeoPackage.create(filename)
@@ -195,7 +215,7 @@ def make_geopackage(datasets, ds_property_dict, filename):
                 rows.append((wkb, dataset_id, borehole_id, name, datasetProperties, boreholeMaterialCustodian, description, drillStartDate, drillEndDate, elevation_m, boreholeLength_m, long, lat, nvclCollection, drillingMethod, driller, startPoint, inclinationType, elevation_srs, operator, datasetURL))
             except ValueError:
                 continue
-    field_names = [SHAPE.lower(), "identifier","borehole_id", "name", "datasetProperties", "boreholeMaterialCustodian","description","drillStartDate","drillEndDate","elevation_m","boreholeLength_m","long","lat","nvclCollection","drillingMethod","driller","startPoint","inclinationType","elevation_srs","operator", "datasetURL"]
+    field_names = [SHAPE, "identifier","borehole_id", "name", "datasetProperties", "boreholeMaterialCustodian","description","drillStartDate","drillEndDate","elevation_m","boreholeLength_m","long","lat","nvclCollection","drillingMethod","driller","startPoint","inclinationType","elevation_srs","operator", "datasetURL"]
     fc.insert_rows(field_names, rows)
 
     # CREATE DATASETS TABLE  
@@ -234,7 +254,7 @@ def make_geopackage(datasets, ds_property_dict, filename):
         wkb = point_to_gpkg_point(point_geom_hdr, x, y)
         rows.append((wkb, borehole_header_id, depth, depth_point, diameter, p_wave_amplitude, p_wave_velocity, density, magnetic_susceptibility, impedance, natural_gamma, resistivity))
             
-    field_names = [SHAPE.lower(), "borehole_header_id","depth","depth_point","diameter","p_wave_amplitude","p_wave_velocity","density","magnetic_susceptibility","impedance","natural_gamma","resistivity"]
+    field_names = [SHAPE, "borehole_header_id","depth","depth_point","diameter","p_wave_amplitude","p_wave_velocity","density","magnetic_susceptibility","impedance","natural_gamma","resistivity"]
     fc.insert_rows(field_names, rows)
 
 
