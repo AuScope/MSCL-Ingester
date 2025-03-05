@@ -78,7 +78,7 @@ def make_datasets():
             print(f"Cannot find data header in {csv_file}")
             sys.exit(1)
         ds = pd.DataFrame(columns=DS_COLS)
-        for col_name, col in ds.iteritems():
+        for col_name, col in ds.items():
             if col_name == 'borehole_header_id':
                 continue
             # Looking to columns in input file - try one of two options else fail
