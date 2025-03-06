@@ -9,6 +9,11 @@ from zipfile import ZipFile
 
 import pandas as pd
 
+# For Accessing AWS S3 buckets
+import boto3
+import botocore
+from botocore.exceptions import BotoCoreError, ClientError
+
 from pygeopkg.core.geopkg import GeoPackage
 from pygeopkg.core.srs import SRS
 from pygeopkg.core.field import Field
@@ -20,24 +25,30 @@ from pygeopkg.conversion.to_geopkg_geom import (
 from pygeopkg.shared.constants import SHAPE
 
 
-# Process a directory of CSV files (DATA_DIR) containing borehole data.
-# Creates a 'features.csv' file and uses it to write out a geopkg file which
-# can be uploaded to geoserver as boreholes & datasets
-# Links to datasets in an AWS s3 bucket dir are included as 'datasetURL' fields in feature data
-# Datasets are written out as .zip files ready to be transferred to AWS s3 bucket
+# What does this script do?
+# -------------------------
+#
+# 1. Process a directory of CSV files (DATA_DIR) containing multiscan core logger (MSCL) borehole petrophysics data.
+# 2. Creates a 'features.csv' file and uses it to write out a geopkg file which
+#    can be uploaded to geoserver as boreholes & datasets
+# 3. Includes URLs to datasets in an AWS s3 bucket dir are included as 'datasetURL' fields in feature data
+# 4. Datasets are written out as .zip files and transferred to AWS s3 bucket
 
 
 # There are lots of things TODO:
-# - Add support to upload files to AWS s3 bucket, using boto3 or fiona (?)
-# An alternative to 'pygeopkg' is 'fiona'. Does it enable creating a geopkg with non-text fields?? It has AWS support...
+# - Replace 'pygeopkg; with 'fudgeo' or an alternative is 'fiona'
 # - Make fields easy to change
 # - Use geopandas instead of features.csv file
 
-# Directory where borehole input files are kept
+# Local directory where borehole input files are kept
 DATA_DIR = "data"
 
-# Publicly accessible bucket file
-BUCKET_DIR = "https://auscope-mscl-datasets.s3.ap-southeast-2.amazonaws.com/MelbUni/"
+# Publicly accessible AWS s3 bucket 
+BUCKET_FOLDER = "test"
+BUCKET_NAME = "bucket-name"
+BUCKET_REGION = "ap-southeast-2"
+BUCKET_DIR = f"https://{BUCKET_NAME}.s3.{BUCKET_REGION}.amazonaws.com/{BUCKET_FOLDER}/"
+
 
 # Columns in our internal dataframe
 DS_COLS = ["borehole_header_id", "depth", "depth_point", "diameter", "p_wave_amplitude", "p_wave_velocity", "density", "magnetic_susceptibility", "impedance", "natural_gamma", "resistivity"]
@@ -106,7 +117,7 @@ def make_datasets():
     return csv_file_list, datasets, ds_property_dict
 
 
-def make_features(csv_file_list):
+def make_features(s3, csv_file_list):
     ''' Extracts borehole feature data from CSV files and writes them to 'features.csv' file
 
     :param csv_file_list: list of CSV files to process
@@ -125,7 +136,8 @@ def make_features(csv_file_list):
             with ZipFile(zip_file, 'w') as myzip:
                 myzip.write(csv_file)
                 
-            # TODO: Upload zip file to AWS S3 Bucket
+            # Upload zip file to AWS S3 Bucket
+            bucket_upload(s3, zip_file)
             
             print("Processing ", csv_file)
             with open(csv_file) as csvfile:
@@ -141,13 +153,23 @@ def make_features(csv_file_list):
 
 
 
+def bucket_upload(s3, zip_file: str):
+    try:
+        s3.upload_file(zip_file, BUCKET_NAME, os.path.join(BUCKET_FOLDER, os.path.basename(zip_file)) )
+    except BotoCoreError as bce:
+        print(f"BotoCoreError: {bce}")
+        sys.exit(1)
+    except ClientError as ce:
+        print(f"ClientError: {ce}")
+        sys.exit(1)
 
-def make_geopackage(datasets, ds_property_dict, filename):
+
+def make_geopackage(datasets: pd.DataFrame, ds_property_dict: dict, filename: str):
     ''' Creates a geopackage file with borehole datasets which can be imported into geoserver
     Reads 'features.csv' to extract feature data.
     Uses the pandas frame to extract the datasets.
 
-    :param datasets: file type e.g. FileType.GOCAD
+    :param datasets: pandas DataFrame of datasets
     :param ds_property_dict: dataset property dict
     :param filename: geopackage filename with path
     '''
@@ -269,7 +291,21 @@ if __name__ == "__main__":
         print(f"Filename must end in '.gpkg'")
         sys.exit(1)
     csv_file_list, datasets, ds_property_dict = make_datasets()
-    make_features(csv_file_list)
-    #print(ds_property_dict)
+
+    # Connect to AWS
+    try:
+        s3 = boto3.client('s3')
+    except BotoCoreError as bce:
+        print(f"BotoCoreError: {bce}")
+        sys.exit(1)
+    except ClientError as ce:
+        print(f"ClientError: {ce}")
+        sys.exit(1)
+
+    # Make WFS features
+    make_features(s3, csv_file_list)
+
+    # Make a geopkg file
     make_geopackage(datasets, ds_property_dict, args.filename)
+    print("Done.")
     
