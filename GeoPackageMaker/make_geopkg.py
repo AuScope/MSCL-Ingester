@@ -45,7 +45,7 @@ DATA_DIR = "data"
 
 # Publicly accessible AWS s3 bucket 
 BUCKET_FOLDER = "test"
-BUCKET_NAME = "bucket-name"
+BUCKET_NAME = "bucket"
 BUCKET_REGION = "ap-southeast-2"
 BUCKET_DIR = f"https://{BUCKET_NAME}.s3.{BUCKET_REGION}.amazonaws.com/{BUCKET_FOLDER}/"
 
@@ -154,6 +154,12 @@ def make_features(s3, csv_file_list):
 
 
 def bucket_upload(s3, zip_file: str):
+    ''' Uploads a zip file to AWS s3
+
+    :param s3: s3 client object returned from "boto3.client('s3')"
+    :param zip_file: full path in local filesystem of zip file
+    '''
+    print(f"Uploading {zip_file} to {BUCKET_NAME}")
     try:
         s3.upload_file(zip_file, BUCKET_NAME, os.path.join(BUCKET_FOLDER, os.path.basename(zip_file)) )
     except BotoCoreError as bce:
@@ -161,6 +167,9 @@ def bucket_upload(s3, zip_file: str):
         sys.exit(1)
     except ClientError as ce:
         print(f"ClientError: {ce}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error: {e}")
         sys.exit(1)
 
 
@@ -300,6 +309,9 @@ if __name__ == "__main__":
         sys.exit(1)
     except ClientError as ce:
         print(f"ClientError: {ce}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error: {e}")
         sys.exit(1)
 
     # Make WFS features
