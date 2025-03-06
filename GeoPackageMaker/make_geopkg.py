@@ -25,15 +25,6 @@ from pygeopkg.conversion.to_geopkg_geom import (
 from pygeopkg.shared.constants import SHAPE
 
 
-# What does this script do?
-# -------------------------
-#
-# 1. Process a directory of CSV files (DATA_DIR) containing multiscan core logger (MSCL) borehole petrophysics data.
-# 2. Creates a 'features.csv' file and uses it to write out a geopkg file which
-#    can be uploaded to geoserver as boreholes & datasets
-# 3. Includes URLs to datasets in an AWS s3 bucket dir are included as 'datasetURL' fields in feature data
-# 4. Datasets are written out as .zip files and transferred to AWS s3 bucket
-
 
 # There are lots of things TODO:
 # - Replace 'pygeopkg; with 'fudgeo' or an alternative is 'fiona'
@@ -168,7 +159,7 @@ def bucket_upload(s3, zip_file: str):
     except ClientError as ce:
         print(f"ClientError: {ce}")
         sys.exit(1)
-    except Exception as e:
+    except Exception as e: # NB: boto3 has no generic exception
         print(f"Error: {e}")
         sys.exit(1)
 
@@ -310,7 +301,7 @@ if __name__ == "__main__":
     except ClientError as ce:
         print(f"ClientError: {ce}")
         sys.exit(1)
-    except Exception as e:
+    except Exception as e: # NB: boto3 has no generic exception
         print(f"Error: {e}")
         sys.exit(1)
 

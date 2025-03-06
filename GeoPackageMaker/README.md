@@ -1,34 +1,29 @@
-# Basic Instructions
+## What does this script do?
 
-Create virtual env
+1. Process a directory of CSV files (DATA_DIR) containing multiscan core logger (MSCL) borehole petrophysics data.
+2. Creates a 'features.csv' file and uses it to write out a geopkg file which
+   can be uploaded to geoserver as boreholes & datasets
+3. Includes URLs to datasets in an AWS s3 bucket dir are included as 'datasetURL' fields in feature data
+4. Datasets are written out as .zip files and transferred to AWS s3 bucket
+
+## Basic Instructions
+
+### To install
+
+1. Install Python v3.10 or higher (https://www.python.org/)
+2. Install uv (https://docs.astral.sh/uv/getting-started/installation/)
+3. Clone this repository
+
+### Create and start a virtual env
 
 ```
-mkdir venv
-python3 -m venv ./venv
+uv run $SHELL
 ```
 
-Activate virtual env
 
-```
-. ./venv/bin/activate
-```
+** NB: 'pygeopkg'** writes out shape column in upper case which causes problems for geoserver:**
 
-Install packages
-
-```
-. ./venv/bin/activate
-pip3 install -r requirements.txt
-```
-
-*NB: Current package version of 'pygeopkg' writes out the date in the "gpkg_contents" table in a format that causes geoserver to fail but is fixed in github. (https://github.com/realiii/pygeopkg/commit/e3b9ca11d2dcc3239a2f498278906f776adf06af) There has been no release in pypi since, so we must edit the "geopkg.py" file to fix it.*
-
-Change line 264 in './venv/lib/python3.8/site-packages/pygeopkg/core/geopkg.py' to:
-```
-return datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-``` 
-*Also writes out shape column in upper case which causes problems for geoserver:*
-
-Change line 26 in './venv/lib/python3.8/site-packages/pygeopkg/core/sql.py' to:
+Change line 49 in './GeoPackageMaker/.venv/lib/python3.10/site-packages/pygeopkg/shared/sql.py' to:
 ```
  """shape {feature_type}{other_fields})"""
 ```
@@ -36,5 +31,5 @@ Change line 26 in './venv/lib/python3.8/site-packages/pygeopkg/core/sql.py' to:
 Run script
 
 ```
-./make_geopkg.py ./mscl12.gpkg
+python3 ./make_geopkg.py ./mscl12.gpkg
 ```
